@@ -3,8 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["/bin/bash", "/entrypoint.sh"]
-    # working_dir: /home/user/antsy
+    command: ["bash"]
+    stdin_open: true
+    tty: true
     volumes:
       - ./:/home/antsy
       - /dev:/dev
@@ -13,18 +14,19 @@ services:
       - ${XAUTHORITY:-$HOME/.Xauthority}:/home/user/.Xauthority:ro
     environment:
       # Application
-      - DATA_PATH=${PWD}/data
+      - DATA_PATH=/home/antsy/data
       # Graphics
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - NVIDIA_DRIVER_CAPABILITIES=all
       # ROS 2
-      - COLCON_HOME=${PWD}/.colcon
+      - COLCON_HOME=/home/antsy/.colcon
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - ANTSY_AUTOSTART=0
       # Other
-      - HISTFILE=${PWD}/.bash_history
+      - HISTFILE=/home/antsy/.bash_history
     devices:
       - /dev/dri:/dev/dri  # Allow access to GPU devices if needed
       - /dev/uinput
@@ -53,25 +55,25 @@ services:
         ds4drv --led 00ff00;
         "
       ]
-    working_dir: ${PWD}
+    working_dir: /home/antsy
     volumes:
-      - ./:${PWD}
+      - ./:/home/antsy
       - /dev:/dev
       - /tmp:/tmp
       - /var/log/journal:/var/log/journal
       - ${XAUTHORITY:-$HOME/.Xauthority}:/home/user/.Xauthority:ro
     environment:
       # Application
-      - DATA_PATH=${PWD}/data
+      - DATA_PATH=/home/antsy/data
       # Graphics
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - NVIDIA_DRIVER_CAPABILITIES=all
       # ROS 2
-      - COLCON_HOME=${PWD}/.colcon
+      - COLCON_HOME=/home/antsy/.colcon
       - ROS_DOMAIN_ID=0
       # Other
-      - HISTFILE=${PWD}/.bash_history
+      - HISTFILE=/home/antsy/.bash_history
     devices:
       - /dev/dri:/dev/dri  # Allow access to GPU devices if needed
       - /dev/uinput
@@ -95,7 +97,7 @@ services:
     privileged: true
     stdin_open: true
     tty: true
-    runtime: nvidia
+    runtime: ${DOCKER_RUNTIME:-runc}
     environment:
     # Application
       - DATA_PATH=/home/antsy/data
@@ -110,5 +112,4 @@ services:
     volumes:
       - ./:/home/antsy
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    # Ensure the launch file exists and is executable
-    command: ["/bin/bash", "/entrypoint.sh"]
+    command: ["ros2", "launch", "antsy_simulation", "simulator.launch.xml"]

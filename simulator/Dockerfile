@@ -1,30 +1,28 @@
-FROM ros:humble
+ARG ROS_DISTRO=humble
+FROM ros:${ROS_DISTRO}
 
-RUN apt update && apt install -y \
-    lsb-release \
-    gnupg \
-    curl
+SHELL ["/bin/bash", "-c"]
 
-RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
-    | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-RUN apt-get install -y \
-    ignition-fortress
+ARG ROS_DISTRO=humble
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=${ROS_DISTRO}
 
-ENV IGNITION_VERSION=fortress
-
-RUN apt-get install -y \
-    ros-humble-ros-gz
-RUN apt-get install -y \
-    ros-humble-rmw-cyclonedds-cpp
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ros-${ROS_DISTRO}-actuator-msgs \
+      ros-${ROS_DISTRO}-joint-state-publisher \
+      ros-${ROS_DISTRO}-joy \
+      ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+      ros-${ROS_DISTRO}-robot-state-publisher \
+      ros-${ROS_DISTRO}-ros-gz \
+      ros-${ROS_DISTRO}-teleop-twist-joy \
+      ros-${ROS_DISTRO}-xacro && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/antsy
 
-RUN echo 'PS1="(container) ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "' >> /home/${USERNAME}/.bashrc
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
-RUN echo "source install/setup.bash" >> /home/$USERNAME/.bashrc
-
-COPY ./ros_entrypoint.sh /
+COPY ./ros_entrypoint.sh /ros_entrypoint.sh
 RUN chmod +x /ros_entrypoint.sh
+
 ENTRYPOINT ["/ros_entrypoint.sh"]
-CMD ["bash"]
+CMD ["ros2", "launch", "antsy_simulation", "simulator.launch.xml"]

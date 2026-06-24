@@ -1,113 +1,72 @@
 ARG ARCH=""
-FROM ${ARCH}ubuntu:22.04 AS base
-# FROM ubuntu:22.04@sha256:aa772c98400ef833586d1d517d3e8de670f7e712bf581ce6053165081773259d
+ARG ROS_DISTRO=humble
+FROM ${ARCH}ros:${ROS_DISTRO} AS base
 
-# ROS2
-## Install prerequisites
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    curl wget gnupg2 lsb-release \
-    software-properties-common \ 
-    rsync
-## Enable required repositories
-RUN add-apt-repository universe
-## Add ROS 2 GPG key
-RUN apt update
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-## Add the repo to sources list
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
-## Install ROS 2 including dev tools
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ros-dev-tools \
-    ros-humble-desktop
+SHELL ["/bin/bash", "-c"]
 
-# Install Gazebo Harmonic
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-# RUN apt update && \
-#     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-#     gz-harmonic
-
-# Install other ROS-related packages
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ros-humble-rqt* \
-    ros-humble-plotjuggler-ros \
-    ros-humble-xacro \
-    ros-humble-joint-state-publisher \
-    ros-humble-joint-state-publisher-gui \
-    ros-humble-actuator-msgs \
-    ros-humble-rmw-cyclonedds-cpp
-
-# Install other non-ROS packages
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    python3-pip \
-    vim \
-    gdb
-
-# Install Python packages
-RUN pip install \
-    rockit-meco
-RUN pip install \
-    notebook \
-    ipympl \
-    jupytext
-
-# Install ds4drv for PS4 controller
-RUN apt update && apt-get install -y \
-    udev \
-    libbluetooth-dev \
-    bluetooth \
-    bluez
-
-RUN pip install \
-    ds4drv
-
-# Set up udev rules
-RUN echo 'KERNEL=="uinput", GROUP="input", MODE="0666"' > /etc/udev/rules.d/99-uinput.rules
-
-# Clear apt cache
-RUN rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user
+ARG ROS_DISTRO=humble
 ARG USERNAME=user
 ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-RUN groupadd --gid $USER_GID $USERNAME && \
-    useradd --uid $USER_UID --gid $USER_GID --create-home --shell /bin/bash $USERNAME
+ARG USER_GID=${USER_UID}
 
-# Give sudo privileges to the non-root user if needed
-RUN echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=${ROS_DISTRO}
 
-# Create ds4user and add to groups
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      bluetooth \
+      bluez \
+      curl \
+      gdb \
+      git \
+      libbluetooth-dev \
+      python3-pip \
+      rsync \
+      sudo \
+      udev \
+      vim \
+      ros-${ROS_DISTRO}-actuator-msgs \
+      ros-${ROS_DISTRO}-desktop \
+      ros-${ROS_DISTRO}-joint-state-publisher \
+      ros-${ROS_DISTRO}-joint-state-publisher-gui \
+      ros-${ROS_DISTRO}-joy \
+      ros-${ROS_DISTRO}-plotjuggler-ros \
+      ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+      ros-${ROS_DISTRO}-ros-gz \
+      ros-${ROS_DISTRO}-teleop-twist-keyboard \
+      ros-${ROS_DISTRO}-teleop-twist-joy \
+      ros-${ROS_DISTRO}-xacro \
+      ros-dev-tools && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir \
+      ds4drv \
+      ipympl \
+      jupytext \
+      notebook \
+      rockit-meco
+
+RUN echo 'KERNEL=="uinput", GROUP="input", MODE="0666"' > /etc/udev/rules.d/99-uinput.rules
+
+RUN groupadd --gid ${USER_GID} ${USERNAME} && \
+    useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} && \
+    usermod -aG dialout,input ${USERNAME} && \
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
+    chmod 0440 /etc/sudoers.d/${USERNAME}
+
 RUN useradd -m ds4user && \
-    usermod -aG input ds4user && \
-    usermod -aG sudo ds4user && \
-    usermod -aG input $USERNAME
+    usermod -aG input,sudo ds4user
 
-# Give permission to dialout group (to access serial ports)
-RUN usermod -aG dialout $USERNAME
-
-# Set up .bashrc
-## Add terminal coloring for the new user
-RUN echo 'PS1="(container) ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "' >> /home/${USERNAME}/.bashrc
-## Source ROS 2 setup
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
-RUN echo "source install/setup.bash" >> /home/$USERNAME/.bashrc
+RUN echo 'PS1="(container) ${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "' >> /home/${USERNAME}/.bashrc && \
+    echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/${USERNAME}/.bashrc && \
+    echo "[ -f /home/antsy/install/setup.bash ] && source /home/antsy/install/setup.bash" >> /home/${USERNAME}/.bashrc
 
 WORKDIR /home/antsy
 
-# Initialize rosdep
-RUN rosdep init && \
-    rosdep update
-
-# Switch to the non-root user
-USER $USERNAME
-
-# Copy entrypoint.sh
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Set entrypoint (if needed)
-# ENTRYPOINT ["/entrypoint.sh"]
+USER ${USERNAME}
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
