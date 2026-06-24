@@ -92,7 +92,7 @@ services:
   simulator:
     build:
       context: ./simulator
-    container_name: antsy-gazebo
+    container_name: antsy-mujoco
     network_mode: host
     privileged: true
     stdin_open: true

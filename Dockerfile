@@ -19,7 +19,10 @@ RUN apt-get update && \
       curl \
       gdb \
       git \
+      libgl1 \
       libbluetooth-dev \
+      libglfw3 \
+      libosmesa6 \
       python3-pip \
       rsync \
       sudo \
@@ -32,7 +35,6 @@ RUN apt-get update && \
       ros-${ROS_DISTRO}-joy \
       ros-${ROS_DISTRO}-plotjuggler-ros \
       ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
-      ros-${ROS_DISTRO}-ros-gz \
       ros-${ROS_DISTRO}-teleop-twist-keyboard \
       ros-${ROS_DISTRO}-teleop-twist-joy \
       ros-${ROS_DISTRO}-xacro \
@@ -43,6 +45,7 @@ RUN python3 -m pip install --no-cache-dir \
       ds4drv \
       ipympl \
       jupytext \
+      mujoco \
       notebook \
       rockit-meco
 
