@@ -1,21 +1,28 @@
 [submodule "src/antsy_description"]
 	path = src/antsy_description
 	url = git@github.com:Laroto/antsy_description.git
+	branch = main
 [submodule "src/antsy_simulation"]
 	path = src/antsy_simulation
 	url = git@github.com:Laroto/antsy_simulation.git
+	branch = main
 [submodule "src/antsy_control"]
 	path = src/antsy_control
 	url = git@github.com:Laroto/antsy_control.git
+	branch = main
 [submodule "src/antsy_kinematics"]
 	path = src/antsy_kinematics
 	url = git@github.com:Laroto/antsy_kinematics.git
+	branch = main
 [submodule "src/antsy_msgs"]
 	path = src/antsy_msgs
 	url = git@github.com:Laroto/antsy_msgs.git
+	branch = main
 [submodule "src/ds4_launcher"]
 	path = src/ds4_launcher
 	url = git@github.com:Laroto/ds4_launcher.git
+	branch = main
 [submodule "src/hiwonder_ros2"]
 	path = src/hiwonder_ros2
 	url = git@github.com:Laroto/hiwonder_ros2.git
+	branch = main
