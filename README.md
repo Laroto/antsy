@@ -1,4 +1,4 @@
-# ANTSY - Autonomous Navigator and Terrain Surveyor Yetti
+# ANTSY - Autonomous Navigator and Terrain Surveyor Yetti: a ROS 2 Hexapod Robot with MuJoCo Simulation
 Yetti? Well, it is not a spider. It's more like an aberration, like a Yetti!
 
 This package can be used for hexapod simulation in ROS2. The `mujoco-simulation` branch uses MuJoCo as the simulator backend.
