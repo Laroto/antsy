@@ -11,6 +11,7 @@ from pathlib import Path
 import rclpy
 from actuator_msgs.msg import Actuators
 from geometry_msgs.msg import TwistStamped
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from std_srvs.srv import Trigger
 
@@ -19,6 +20,8 @@ LOG_DIR = Path(os.environ.get("ANTSY_TEST_LOG_DIR", "/tmp/antsy_smoke_tests"))
 ACTUATOR_COUNT = 18
 MOTION_DELTA_MIN = 0.01
 RESET_DELTA_MAX = 0.02
+ODOM_FORWARD_MIN = 0.03
+ODOM_LATERAL_MAX = 0.04
 
 
 def start_process(name, command):
@@ -62,13 +65,30 @@ class ControlSmokeNode(Node):
     def __init__(self):
         super().__init__("antsy_control_pipeline_smoke")
         self.latest_actuators = None
+        self.latest_odom = None
         self.create_subscription(Actuators, "/actuators", self._actuator_callback, 10)
+        self.create_subscription(Odometry, "/leg_odom", self._odom_callback, 10)
         self.cmd_pub = self.create_publisher(TwistStamped, "/cmd_vel", 10)
         self.reset_client = self.create_client(Trigger, "/control/reset")
 
     def _actuator_callback(self, msg):
         if len(msg.position) == ACTUATOR_COUNT and all(math.isfinite(v) for v in msg.position):
             self.latest_actuators = msg
+
+    def _odom_callback(self, msg):
+        pose = msg.pose.pose.position
+        twist = msg.twist.twist
+        values = [
+            pose.x,
+            pose.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w,
+            twist.linear.x,
+            twist.linear.y,
+            twist.angular.z,
+        ]
+        if all(math.isfinite(v) for v in values):
+            self.latest_odom = msg
 
     def wait_for_actuators(self, timeout):
         self.latest_actuators = None
@@ -87,6 +107,24 @@ class ControlSmokeNode(Node):
         if self.latest_actuators is None:
             raise TimeoutError("timed out collecting fresh /actuators")
         return self.latest_actuators
+
+    def wait_for_odom(self, timeout):
+        self.latest_odom = None
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.05)
+            if self.latest_odom is not None:
+                return self.latest_odom
+        raise TimeoutError("timed out waiting for /leg_odom")
+
+    def collect_latest_odom(self, duration):
+        self.latest_odom = None
+        deadline = time.monotonic() + duration
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.05)
+        if self.latest_odom is None:
+            raise TimeoutError("timed out collecting fresh /leg_odom")
+        return self.latest_odom
 
     def publish_forward_command(self, duration):
         deadline = time.monotonic() + duration
@@ -133,29 +171,51 @@ def main():
 
         node = ControlSmokeNode()
         idle = node.wait_for_actuators(timeout=12.0)
+        idle_odom = node.wait_for_odom(timeout=4.0)
 
         node.publish_forward_command(duration=2.0)
         moving = node.wait_for_actuators(timeout=4.0)
+        moving_odom = node.collect_latest_odom(duration=0.5)
         movement_delta = max_delta(idle, moving)
         if movement_delta < MOTION_DELTA_MIN:
             fail(
                 f"/actuators did not respond enough to cmd_vel; max delta {movement_delta:.5f}",
                 logs,
             )
+        odom_forward_delta = moving_odom.pose.pose.position.x - idle_odom.pose.pose.position.x
+        odom_lateral_delta = moving_odom.pose.pose.position.y - idle_odom.pose.pose.position.y
+        if odom_forward_delta < ODOM_FORWARD_MIN:
+            fail(
+                f"/leg_odom did not move forward enough; x delta {odom_forward_delta:.5f}",
+                logs,
+            )
+        if abs(odom_lateral_delta) > ODOM_LATERAL_MAX:
+            fail(
+                f"/leg_odom drifted laterally too much; y delta {odom_lateral_delta:.5f}",
+                logs,
+            )
 
         node.reset_control()
         reset = node.collect_latest_actuators(duration=0.5)
+        reset_odom = node.collect_latest_odom(duration=0.5)
         reset_delta = max_delta(idle, reset)
         if reset_delta > RESET_DELTA_MAX:
             fail(
                 f"/control/reset did not return close to startup actuators; max delta {reset_delta:.5f}",
                 logs,
             )
+        if abs(reset_odom.pose.pose.position.x) > 0.01 or abs(reset_odom.pose.pose.position.y) > 0.01:
+            fail(
+                "/control/reset did not reset /leg_odom close to the origin; "
+                f"x={reset_odom.pose.pose.position.x:.5f}, y={reset_odom.pose.pose.position.y:.5f}",
+                logs,
+            )
 
         print(
             "PASS: cmd_vel changed /actuators "
             f"(max delta {movement_delta:.4f} rad) and /control/reset restored startup commands "
-            f"(max delta {reset_delta:.4f} rad)."
+            f"(max delta {reset_delta:.4f} rad); /leg_odom moved forward "
+            f"{odom_forward_delta:.4f} m with lateral drift {odom_lateral_delta:.4f} m."
         )
     except Exception as exc:
         fail(str(exc), logs)
