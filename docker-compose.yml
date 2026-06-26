@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["bash"]
+    command: []
     stdin_open: true
     tty: true
     volumes:
@@ -24,7 +24,11 @@ services:
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-      - ANTSY_AUTOSTART=0
+      - ANTSY_AUTOSTART=1
+      - ANTSY_STACK=robot
+      - ANTSY_HIWONDER_DEVICE=${ANTSY_HIWONDER_DEVICE:-/dev/ttyUSB0}
+      - ANTSY_HIWONDER_BAUD_RATE=${ANTSY_HIWONDER_BAUD_RATE:-9600}
+      - ANTSY_HIWONDER_WRITE_RATE=${ANTSY_HIWONDER_WRITE_RATE:-4}
       # Other
       - HISTFILE=/home/antsy/.bash_history
     devices:
@@ -46,15 +50,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: 
-      [
-        "/bin/bash",
-        "-c",
-        "
-        echo 'Connecting to gamepad...';
-        ds4drv --led 00ff00;
-        "
-      ]
+    command: []
     working_dir: /home/antsy
     volumes:
       - ./:/home/antsy
@@ -72,6 +68,11 @@ services:
       # ROS 2
       - COLCON_HOME=/home/antsy/.colcon
       - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - ANTSY_AUTOSTART=1
+      - ANTSY_STACK=remote
+      - ANTSY_DS4_LED=${ANTSY_DS4_LED:-00ff00}
       # Other
       - HISTFILE=/home/antsy/.bash_history
     devices:

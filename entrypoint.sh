@@ -20,6 +20,33 @@ if [ ! -f /home/antsy/install/setup.bash ]; then
   exit 1
 fi
 
+if [ "${ANTSY_STACK:-}" = "robot" ]; then
+  exec ros2 launch antsy_control real_robot.launch.py \
+    use_sim_time:=false \
+    hiwonder_device:="${ANTSY_HIWONDER_DEVICE:-/dev/ttyUSB0}" \
+    hiwonder_baud_rate:="${ANTSY_HIWONDER_BAUD_RATE:-9600}" \
+    hiwonder_write_rate:="${ANTSY_HIWONDER_WRITE_RATE:-4}"
+fi
+
+if [ "${ANTSY_STACK:-}" = "remote" ]; then
+  ds4drv --led "${ANTSY_DS4_LED:-00ff00}" &
+  ds4drv_pid=$!
+
+  cleanup() {
+    kill "${ds4drv_pid}" 2>/dev/null || true
+  }
+  trap cleanup EXIT INT TERM
+
+  for _ in $(seq 1 50); do
+    if [ -e /dev/input/js0 ]; then
+      break
+    fi
+    sleep 0.2
+  done
+
+  exec ros2 launch ds4_launcher joy_teleop.launch.py
+fi
+
 declare -a pids=()
 
 launch_bg() {
