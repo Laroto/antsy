@@ -22,3 +22,25 @@ There is more information about each component of this package in the submodules
 - [ds4_launcher](https://github.com/Laroto/ds4_launcher/tree/main) - just a simple convenience tool to use a PS4 controller to remote control our Yetti.
 
 There are more submodules/packages but they are used as libraries and/or dependencies so no need to worry about those ;)
+
+## Offline smoke tests
+
+Run the real-robot command pipeline checks without a remote controller or real servos:
+
+```bash
+scripts/run_offline_smoke_tests.sh
+```
+
+The smoke suite runs inside Docker, builds the required packages, and uses an isolated ROS domain by default. Override it with:
+
+```bash
+ANTSY_TEST_ROS_DOMAIN_ID=94 scripts/run_offline_smoke_tests.sh
+```
+
+The tests check:
+
+- `cmd_vel` through `antsy_description` + `antsy_control` produces changing `/actuators` commands.
+- `/control/reset` returns the controller output close to the startup actuator command.
+- `hiwonder_ros2/write_only` can run against a pseudo-terminal, receives `/actuators`, writes serial move packets, sends servo unload on `/motors/disable`, pauses writes while disabled, and resumes on `/motors/enable`.
+
+`/actuators` is not simulator-only. It is the controller output topic. The MuJoCo simulator subscribes to it in simulation, and the Hiwonder writer subscribes to it on the real robot.
