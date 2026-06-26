@@ -3,6 +3,20 @@ Yetti? Well, it is not a spider. It's more like an aberration, like a Yetti!
 
 This package can be used for hexapod simulation in ROS2. The `mujoco-simulation` branch uses MuJoCo as the simulator backend.
 
+## Demo
+
+<a href="https://www.youtube.com/watch?v=J4Mk0Q0KOWg">
+  <img
+    src="https://img.youtube.com/vi/J4Mk0Q0KOWg/hqdefault.jpg"
+    alt="ANTSY demo video"
+    width="480">
+</a>
+
+<img
+  src="antsy_sim_demo.gif"
+  alt="ANTSY simulator demo"
+  width="480">
+
 ## Instalation
 
 - `git clone git@github.com:Laroto/antsy.git`
